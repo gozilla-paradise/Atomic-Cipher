@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"D:\\\\source\\\\AtomicCipher\\\\AtomicCipher\" -type f -name \"*.json\" -o -name \"*.xml\" -o -name \"*.config\" 2>/dev/null | head -20)",
+      "WebSearch",
+      "Bash(cd D:/source/AtomicCipher/AtomicCipher && dotnet restore 2>&1 && dotnet build 2>&1)",
+      "Bash(dotnet restore:*)",
+      "Bash(find /c/Users/KittyLord/.nuget/packages/bouncycastle.cryptography -name \"*.dll\" 2>/dev/null | head -10)",
+      "Bash(dotnet nuget:*)",
+      "Read(//tmp/**)",
+      "Bash(dotnet run:*)",
+      "Bash(cat /tmp/bctest/*.csproj 2>/dev/null || echo \"No csproj found\")",
+      "Bash(cd /tmp/bctest && dotnet build 2>&1)",
+      "Bash(cd /tmp/bctest && dotnet build 2>&1 && dotnet run 2>&1)",
+      "Bash(cd /tmp/bctest && rm -rf bin obj && dotnet run 2>&1)",
+      "Read(//d/source/AtomicCipher/AtomicCipher/$TEMP/bctest/**)",
+      "Bash(cd D:/source/AtomicCipher/AtomicCipher && dotnet build 2>&1)",
+      "Bash(cd /tmp/bctest && dotnet build --no-incremental 2>&1 && dotnet run --no-build 2>&1)",
+      "Bash(cd /tmp/bctest && dotnet clean 2>&1 && dotnet run 2>&1)",
+      "Bash(ls -d \"D:/source/AtomicCipher/AtomicCipher\"/*/ | head -20)",
+      "Bash(cd \"D:\\\\source\\\\AtomicCipher\\\\AtomicCipher\" && dotnet build 2>&1)"
+    ]
+  }
+}
