@@ -1,4 +1,4 @@
-<img width="959" height="930" alt="image" src="https://github.com/user-attachments/assets/f13ac027-1eeb-4963-8b25-b6725e0e1248" />
+<img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/f13ac027-1eeb-4963-8b25-b6725e0e1248" />
 
 
 # AtomicCipher
