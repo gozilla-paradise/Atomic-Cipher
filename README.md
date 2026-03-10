@@ -2,11 +2,12 @@
 
 A post-quantum hybrid file encryption tool for Windows, built with WPF and .NET 10.
 
-AtomicCipher combines **ML-KEM-768** (NIST-standardized post-quantum key encapsulation) with **AES-256-GCM** (authenticated symmetric encryption) to protect files and folders against both classical and quantum computing threats.
+AtomicCipher combines **ML-KEM-768** (NIST-standardized post-quantum key encapsulation) with **AES-256-GCM** (authenticated symmetric encryption) to protect files and folders against both classical and quantum computing threats. It also supports a **passphrase-only mode** using Argon2id key derivation for quick sharing without exchanging key files.
 
 ## Features
 
 - **Post-quantum security** — ML-KEM-768 key encapsulation resistant to quantum attacks
+- **Passphrase-only mode** — Argon2id key derivation (64 MiB, 3 iterations) for encrypting without key files
 - **Authenticated encryption** — AES-256-GCM per chunk + HMAC-SHA256 file integrity
 - **File and folder encryption** — Encrypt individual files or entire directories
 - **ZIP compression** — All content is compressed before encryption for smaller output
@@ -37,22 +38,32 @@ dotnet run
 2. Click **Generate New Key Pair**
 3. Choose a save location — creates `name.acpub` (public) and `name.acpriv` (private)
 
-### Encrypt a File or Folder
+### Encrypt a File or Folder (Key Mode)
 
-1. Load the **recipient's public key** (`.acpub`)
-2. Select the file or folder to encrypt
-3. Click **Encrypt** — produces a `.acf` file
+1. Select **KEY** mode in the encrypt panel
+2. Load the **recipient's public key** (`.acpub`)
+3. Select the file or folder to encrypt
+4. Click **Encrypt** — produces a `.acf` file
+
+### Encrypt a File or Folder (Passphrase Mode)
+
+1. Select **PASSPHRASE** mode in the encrypt panel
+2. Enter a passphrase and confirm it
+3. Select the file or folder to encrypt
+4. Click **Encrypt** — produces a `.acf` file (no key files needed)
 
 ### Decrypt
 
-1. Load **your private key** (`.acpriv`)
-2. Select the `.acf` file
-3. Click **Decrypt** — restores the original file or folder
+1. Load **your private key** (`.acpriv`) for key-encrypted files
+2. For passphrase-encrypted files, enter the passphrase in the decrypt panel
+3. Select the `.acf` file(s) — the mode is auto-detected from the file header
+4. Click **Decrypt** — restores the original file or folder
 
 ### Command Line
 
 ```bash
 AtomicCipher.exe --encrypt "C:\path\to\file.txt"
+AtomicCipher.exe --encrypt-passphrase "C:\path\to\file.txt"
 AtomicCipher.exe --decrypt "C:\path\to\file.txt.acf"
 ```
 
@@ -67,19 +78,28 @@ No admin privileges required (uses HKCU registry).
 ## How It Works
 
 ```
-Sender                                    Recipient
-──────                                    ─────────
-                                          Generate key pair
-                                          Share public key (.acpub)
-                    ◄── .acpub ───
-Encrypt file with
-recipient's public key
-                    ─── .acf ───►
-                                          Decrypt with private key (.acpriv)
-                                          Original file restored
+Key Mode:
+  Sender                                    Recipient
+  ──────                                    ─────────
+                                            Generate key pair
+                                            Share public key (.acpub)
+                      ◄── .acpub ───
+  Encrypt file with
+  recipient's public key
+                      ─── .acf ───►
+                                            Decrypt with private key (.acpriv)
+                                            Original file restored
+
+Passphrase Mode:
+  Sender                                    Recipient
+  ──────                                    ─────────
+  Encrypt with passphrase
+                      ─── .acf ───►
+                                            Decrypt with same passphrase
+                                            Original file restored
 ```
 
-### Encryption Pipeline
+### Encryption Pipeline (Key Mode)
 
 1. Source file/folder is ZIP-compressed
 2. ML-KEM-768 encapsulates a fresh 32-byte symmetric key using the recipient's public key
@@ -87,13 +107,22 @@ recipient's public key
 4. Compressed data is streamed through AES-256-GCM in 64 KiB chunks (each with a unique derived nonce)
 5. HMAC-SHA256 is appended over the entire file for tamper detection
 
+### Encryption Pipeline (Passphrase Mode)
+
+1. Source file/folder is ZIP-compressed
+2. A 32-byte random salt is generated
+3. A 32-byte symmetric key is derived from the passphrase via **Argon2id** (64 MiB memory, 3 iterations, 4 parallelism)
+4. KDF parameters (salt + config) are stored in the file header as a 44-byte blob
+5. Same AES-256-GCM chunk encryption and HMAC-SHA256 pipeline as key mode
+
 ### Security Properties
 
 | Property | Mechanism |
 |----------|-----------|
 | Post-quantum key exchange | ML-KEM-768 (NIST FIPS 203) |
+| Passphrase key derivation | Argon2id (memory-hard, GPU-resistant) |
 | Symmetric encryption | AES-256-GCM (authenticated) |
-| Per-file key isolation | Fresh KEM encapsulation per file |
+| Per-file key isolation | Fresh KEM encapsulation or fresh salt per file |
 | Chunk ordering protection | Nonce includes chunk index |
 | Tamper detection | File-level HMAC-SHA256, verified before decryption |
 | Metadata protection | Filename encrypted in header |
@@ -117,17 +146,19 @@ PEM-like text format:
 
 ### Encrypted Files (`.acf`)
 
-Binary format with magic bytes `ACF\0`, containing:
-- File header (version, algorithms, encrypted filename, encapsulated key, nonce)
+Binary format v2 with magic bytes `ACF\0`, containing:
+- File header (version, algorithms, key derivation mode, encrypted filename, encapsulated key or KDF params, nonce)
 - Encrypted data chunks (ciphertext + GCM auth tags)
 - HMAC-SHA256 integrity signature
+
+Version 2 is backward-compatible with v1 files (treated as KEM mode).
 
 ## Project Structure
 
 ```
 AtomicCipher/
-├── Crypto/          ML-KEM-768 key management, AES-256-GCM chunked encryption,
-│                    hybrid encrypt/decrypt facades
+├── Crypto/          ML-KEM-768 key management, Argon2id passphrase derivation,
+│                    AES-256-GCM chunked encryption, hybrid + passphrase facades
 ├── FileFormat/      Binary .acf format: header, reader, writer
 ├── Services/        ZIP archiving, secure temp files, settings, context menu
 ├── ViewModels/      MVVM: MainViewModel, RelayCommand
